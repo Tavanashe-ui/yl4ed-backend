@@ -6,43 +6,62 @@ from app.db import models
 ZIMBABWE_GEOGRAPHY = {
     "Harare": {
         "code": "HA",
-        "districts": ["Harare Central", "Chitungwiza", "Epworth", "Highfield", "Mbare", "Seke"]
+        "districts": ["Harare"]   # Harare province is a metropolitan area with no further districts
     },
     "Bulawayo": {
         "code": "BY",
-        "districts": ["Bulawayo Central", "Mzilikazi", "Reigate", "Khami"]
+        "districts": ["Bulawayo"] # Bulawayo province is a metropolitan area with no further districts
     },
     "Manicaland": {
         "code": "MA",
-        "districts": ["Mutare", "Rusape", "Nyanga", "Chipinge", "Chimanimani", "Buhera", "Mutasa"]
+        "districts": [
+            "Buhera", "Chimanimani", "Chipinge", "Makoni", "Mutare", "Mutasa", "Nyanga"
+        ]
     },
     "Midlands": {
         "code": "MI",
-        "districts": ["Gweru", "Kwekwe", "Shurugwi", "Zvishavane", "Mberengwa", "Gokwe North", "Gokwe South"]
+        "districts": [
+            "Chirumhanzu", "Gokwe North", "Gokwe South", "Gweru", "Kwekwe",
+            "Mberengwa", "Shurugwi", "Zvishavane"
+        ]
     },
     "Mashonaland West": {
         "code": "MW",
-        "districts": ["Chinhoyi", "Kadoma", "Kariba", "Chegutu", "Hurungwe", "Makonde", "Zvimba"]
+        "districts": [
+            "Chegutu", "Chinhoyi", "Hurungwe", "Kadoma", "Kariba", "Makonde", "Zvimba"
+        ]
     },
     "Mashonaland East": {
         "code": "ME",
-        "districts": ["Marondera", "Goromonzi", "Murewa", "Mutoko", "Seke", "Wedza", "Mudzi"]
+        "districts": [
+            "Chikomba", "Goromonzi", "Hwedza", "Marondera", "Mudzi", "Murehwa",
+            "Mutoko", "Seke", "Uzumba-Maramba-Pfungwe"
+        ]
     },
     "Mashonaland Central": {
         "code": "MC",
-        "districts": ["Bindura", "Mazowe", "Mount Darwin", "Guruve", "Shamva", "Rushinga", "Muzarabani"]
+        "districts": [
+            "Bindura", "Guruve", "Mazowe", "Mbire", "Mount Darwin", "Muzarabani",
+            "Rushinga", "Shamva"
+        ]
     },
     "Masvingo": {
         "code": "MV",
-        "districts": ["Masvingo", "Chiredzi", "Chivi", "Bikita", "Gutu", "Mwenezi", "Zaka"]
+        "districts": [
+            "Bikita", "Chiredzi", "Chivi", "Gutu", "Masvingo", "Mwenezi", "Zaka"
+        ]
     },
     "Matabeleland North": {
         "code": "MN",
-        "districts": ["Lupane", "Hwange", "Binga", "Tsholotsho", "Nkayi", "Bubi", "Umguza"]
+        "districts": [
+            "Binga", "Bubi", "Hwange", "Lupane", "Nkayi", "Tsholotsho", "Umguza"
+        ]
     },
     "Matabeleland South": {
         "code": "MS",
-        "districts": ["Gwanda", "Beitbridge", "Plumtree", "Insiza", "Matobo", "Filabusi", "Mangwe"]
+        "districts": [
+            "Beitbridge", "Bulilima", "Gwanda", "Insiza", "Mangwe", "Matobo", "Umzingwane"
+        ]
     }
 }
 
