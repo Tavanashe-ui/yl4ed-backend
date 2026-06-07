@@ -56,7 +56,7 @@ def _map_headers(headers: list[str]) -> dict[int, str]:
             if norm in aliases:
                 mapping[idx] = field
                 break
-    return mapping
+    return mapping 
 
 
 def _parse_date(raw: str) -> Optional[str]:
