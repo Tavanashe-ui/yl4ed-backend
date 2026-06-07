@@ -1,4 +1,3 @@
-# app/api/v1/endpoints/executives.py
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -20,8 +19,11 @@ def assign_executive(
     """
     Assign an existing member to a National or Provincial Executive position.
     """
-    return crud_executive.create_executive(db, exec_in)
-
+    return crud_executive.create_executive(
+        db, exec_in,
+        user_id=current_user.id,
+        username=current_user.email
+    )
 
 @router.get("/", response_model=List[schemas.ExecutiveOut])
 def read_executives(
@@ -31,11 +33,9 @@ def read_executives(
     current_user: models.User = Depends(deps.get_current_active_admin)
 ):
     """
-    Retrieve the executive directory. 
-    Pass query parameters (?role=Provincial&province_id=3) to filter.
+    Retrieve the executive directory.
     """
     return crud_executive.get_executives(db, role=role, province_id=province_id)
-
 
 @router.patch("/{exec_id}", response_model=schemas.ExecutiveOut)
 def update_executive(
@@ -47,8 +47,11 @@ def update_executive(
     """
     Update an executive's position, role category, or assigned province.
     """
-    return crud_executive.update_executive(db, exec_id=exec_id, exec_in=exec_in)
-
+    return crud_executive.update_executive(
+        db, exec_id, exec_in,
+        user_id=current_user.id,
+        username=current_user.email
+    )
 
 @router.delete("/{exec_id}", status_code=200)
 def remove_executive(
@@ -58,6 +61,9 @@ def remove_executive(
 ):
     """
     Remove an executive assignment from a member (demotion).
-    The underlying member profile remains intact.
     """
-    return crud_executive.delete_executive(db, exec_id=exec_id)
+    return crud_executive.delete_executive(
+        db, exec_id,
+        user_id=current_user.id,
+        username=current_user.email
+    )

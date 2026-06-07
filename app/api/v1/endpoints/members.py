@@ -1,72 +1,73 @@
-# app/api/v1/endpoints/members.py
-from app.db import models
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
 from typing import List
 
 from app.db.database import get_db
 from app.schemas import member as schemas
 from app.crud import crud_member
+from app.api import deps
+from app.db import models
 
 router = APIRouter()
 
 @router.post("/", response_model=schemas.MemberOut, status_code=status.HTTP_201_CREATED)
 def create_member(
-    member_in: schemas.MemberCreate, 
-    db: Session = Depends(get_db)
+    member_in: schemas.MemberCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_active_admin)
 ):
     """
     Register a new member. Catches duplication errors for email/national ID.
     """
-    # 1. Manual Check for National ID
     db_member = crud_member.get_member_by_national_id(db, national_id=member_in.national_identity_number)
     if db_member:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="A member with this National Identity Number already exists."
         )
     
-    # 2. Try to create with database integrity protection
     try:
-        return crud_member.create_member(db, member_in)
+        return crud_member.create_member(
+            db,
+            member_in,
+            user_id=current_user.id,
+            username=current_user.email
+        )
     except IntegrityError:
-        db.rollback() # Rollback the failed transaction
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="A member with this email address or identifier already exists in our records."
+            detail="A member with this email address or identifier already exists."
         )
 
 @router.get("/", response_model=List[schemas.MemberOut])
 def read_members(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_active_admin)
 ):
-    members = db.query(models.Member)\
-        .join(models.Province, models.Member.province_id == models.Province.id)\
-        .join(models.District, models.Member.district_id == models.District.id)\
-        .add_columns(
-            models.Province.name.label("province_name"),
-            models.District.name.label("district_name")
-        )\
-        .offset(skip).limit(limit).all()
-    
-    # Convert each row into a Member object with extra attributes
-    result = []
-    for member, province_name, district_name in members:
-        member.province_name = province_name
-        member.district_name = district_name
-        result.append(member)
-    
-    return result
+    """
+    Retrieve all members for the directory dashboard.
+    """
+    members = crud_member.get_members(db, skip=skip, limit=limit)
+    return members
 
 @router.delete("/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_member(member_id: int, db: Session = Depends(get_db)):
+def delete_member(
+    member_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_active_admin)
+):
     """
     Remove a member from the directory.
     """
-    success = crud_member.delete_member(db, member_id=member_id)
+    success = crud_member.delete_member(
+        db,
+        member_id,
+        user_id=current_user.id,
+        username=current_user.email
+    )
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

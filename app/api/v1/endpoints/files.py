@@ -1,4 +1,3 @@
-# app/api/v1/endpoints/files.py
 """
 Bulk Import & Export endpoints for YL4ED Membership Management System.
 
@@ -22,6 +21,7 @@ from app.core import pdf_utils
 from app.core import excel_utils
 from app.crud import crud_member
 from app.schemas import member as schemas
+from app.utils.audit import log_audit
 
 router = APIRouter()
 
@@ -64,6 +64,16 @@ def download_import_template(
     50 blank rows, gender dropdown, and an Instructions sheet.
     """
     buffer = excel_utils.generate_import_template_excel()
+
+    log_audit(
+        user_id=current_user.id,
+        username=current_user.email,
+        action="DOWNLOAD_TEMPLATE",
+        resource_type="file",
+        endpoint="/files/import/template",
+        method="GET",
+        status_code=200,
+    )
     return _excel_stream(buffer, "yl4ed_import_template.xlsx")
 
 
@@ -87,6 +97,19 @@ async def preview_import(
         raise HTTPException(status_code=413, detail="File too large (max 10 MB).")
 
     result = excel_utils.parse_uploaded_excel(file_bytes)
+
+    # Optionally log preview action (disabled to reduce noise)
+    # log_audit(
+    #     user_id=current_user.id,
+    #     username=current_user.email,
+    #     action="PREVIEW_IMPORT",
+    #     resource_type="file",
+    #     endpoint="/files/import/preview",
+    #     method="POST",
+    #     new_data={"filename": file.filename, "valid_count": result["valid_count"]},
+    #     status_code=200,
+    # )
+
     return {
         "filename":      file.filename,
         "total_found":   result["total_found"],
@@ -145,7 +168,12 @@ async def bulk_import_members(
 
         try:
             member_in = schemas.MemberCreate(**row)
-            new_member = crud_member.create_member(db, member_in)
+            new_member = crud_member.create_member(
+                db,
+                member_in,
+                user_id=current_user.id,
+                username=current_user.email
+            )
             inserted.append({
                 "affiliation_id": new_member.affiliation_id,
                 "name": new_member.name,
@@ -163,6 +191,24 @@ async def bulk_import_members(
                 "reason": str(exc),
             })
 
+    # Log summary of the whole import operation
+    log_audit(
+        user_id=current_user.id,
+        username=current_user.email,
+        action="BULK_IMPORT_SUMMARY",
+        resource_type="file",
+        endpoint="/files/import",
+        method="POST",
+        new_data={
+            "filename": file.filename,
+            "total_found": result["total_found"],
+            "inserted": len(inserted),
+            "skipped": len(skipped),
+            "db_errors": len(db_errors),
+        },
+        status_code=200,
+    )
+
     return {
         "filename":            file.filename,
         "total_found":         result["total_found"],
@@ -178,7 +224,7 @@ async def bulk_import_members(
 
 
 # ─────────────────────────────────────────────────────────────
-#  GET /files/export  (unchanged — still exports as PDF)
+#  GET /files/export
 # ─────────────────────────────────────────────────────────────
 @router.get("/export", summary="Export member directory as PDF")
 def export_members_pdf(
@@ -236,6 +282,23 @@ def export_members_pdf(
         province_name=province_name,
         district_name=district_name,
         gender_filter=gender.value if gender else None,
+    )
+
+    # Audit export action
+    log_audit(
+        user_id=current_user.id,
+        username=current_user.email,
+        action="EXPORT",
+        resource_type="members",
+        endpoint="/files/export",
+        method="GET",
+        new_data={
+            "province_id": province_id,
+            "district_id": district_id,
+            "gender": gender.value if gender else None,
+            "member_count": len(members),
+        },
+        status_code=200,
     )
 
     return _pdf_stream(pdf_buffer, filename)

@@ -1,4 +1,3 @@
-# app/api/deps.py
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
@@ -10,6 +9,7 @@ from app.core.config import settings
 from app.db.database import get_db
 from app.db import models
 from app.schemas.token import TokenPayload
+from app.utils.audit import current_user_id, current_username
 
 # This tells FastAPI where the frontend should send login requests to get the token
 reusable_oauth2 = OAuth2PasswordBearer(
@@ -49,7 +49,11 @@ def get_current_user(
         
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
-        
+    
+    # --- Audit: store user info in context variables for logging ---
+    current_user_id.set(user.id)
+    current_username.set(user.email)
+    
     return user
 
 def get_current_active_admin(

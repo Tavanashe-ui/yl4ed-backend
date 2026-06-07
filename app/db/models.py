@@ -1,7 +1,10 @@
 # app/db/models.py
+from app.utils.audit import log_audit
 from sqlalchemy import Column, Integer, String, Date, ForeignKey, Enum, DateTime, Text, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
+from sqlalchemy import event, func
+from sqlalchemy.orm import Session as SessionType
 import enum
 from .database import Base
 
@@ -90,3 +93,49 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=True) # PRD Requirement: Role-based access control
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # NULL if system action or user deleted
+    username = Column(String(100), nullable=True)  # Denormalised for quick search
+    action = Column(String(50), nullable=False)    # CREATE, UPDATE, DELETE, LOGIN, LOGOUT, EXPORT, IMPORT, VIEW
+    resource_type = Column(String(50))             # "member", "user", "province", etc.
+    resource_id = Column(String(100))              # e.g., member.id or affiliation_id
+    endpoint = Column(String(255))                 # URL path
+    method = Column(String(10))                    # GET, POST, PUT, DELETE
+    ip_address = Column(String(45))                # IPv4/IPv6
+    user_agent = Column(Text)
+    old_data = Column(Text)                        # JSON string of previous state (for updates)
+    new_data = Column(Text)                        # JSON string of new state (for creates/updates)
+    status_code = Column(Integer)                  # HTTP response status
+    error_message = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+@event.listens_for(Member, 'after_insert')
+def member_after_insert(mapper, connection, target):
+    # We cannot easily get request context here, so we'll store minimal info
+    # You can pass user_id via a global context variable (e.g., contextvars)
+    log_audit(
+        action="CREATE",
+        resource_type="member",
+        resource_id=target.affiliation_id or str(target.id),
+        new_data={c.key: getattr(target, c.key) for c in target.__table__.columns if c.key not in ['id', 'created_at', 'updated_at']},
+        # user_id and other request info are missing here – solve with contextvars (see below)
+    )
+
+@event.listens_for(Member, 'before_update')
+def member_before_update(mapper, connection, target):
+    # Capture old state from the database (requires a SELECT)
+    # Use a separate connection to fetch old values
+    pass
+
+@event.listens_for(Member, 'before_delete')
+def member_before_delete(mapper, connection, target):
+    log_audit(
+        action="DELETE",
+        resource_type="member",
+        resource_id=target.affiliation_id or str(target.id),
+        old_data={c.key: getattr(target, c.key) for c in target.__table__.columns},
+    )

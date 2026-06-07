@@ -5,6 +5,9 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
+from app.db.database import Base, engine
+
+target_metadata = Base.metadata
 
 # 1. Add your project root to the Python path so Alembic can find your 'app' folder
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
