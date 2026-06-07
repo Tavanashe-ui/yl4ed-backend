@@ -1,4 +1,5 @@
 # app/api/v1/endpoints/members.py
+from app.db import models
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -38,15 +39,27 @@ def create_member(
 
 @router.get("/", response_model=List[schemas.MemberOut])
 def read_members(
-    skip: int = 0, 
-    limit: int = 100, 
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    """
-    Retrieve all members for the directory dashboard.
-    """
-    members = crud_member.get_members(db, skip=skip, limit=limit)
-    return members
+    members = db.query(models.Member)\
+        .join(models.Province, models.Member.province_id == models.Province.id)\
+        .join(models.District, models.Member.district_id == models.District.id)\
+        .add_columns(
+            models.Province.name.label("province_name"),
+            models.District.name.label("district_name")
+        )\
+        .offset(skip).limit(limit).all()
+    
+    # Convert each row into a Member object with extra attributes
+    result = []
+    for member, province_name, district_name in members:
+        member.province_name = province_name
+        member.district_name = district_name
+        result.append(member)
+    
+    return result
 
 @router.delete("/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_member(member_id: int, db: Session = Depends(get_db)):
